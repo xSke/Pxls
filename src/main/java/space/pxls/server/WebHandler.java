@@ -37,6 +37,7 @@ public class WebHandler {
     private Map<String, AuthService> services = new ConcurrentHashMap<>();
     public static final String TEMPLATE_PROFILE = "public/pebble_templates/profile.html";
     public static final String TEMPLATE_40X = "public/pebble_templates/40x.html";
+    public static final String TEMPLATE_INDEX = "public/pebble_templates/index.html";
 
     public WebHandler() {
         addServiceIfAvailable("reddit", new RedditAuthService("reddit"));
@@ -45,7 +46,7 @@ public class WebHandler {
         addServiceIfAvailable("vk", new VKAuthService("vk"));
         addServiceIfAvailable("tumblr", new TumblrAuthService("tumblr"));
 
-        engine = new PebbleEngine.Builder().loader(new ClasspathLoader(getClass().getClassLoader())).build();
+        engine = new PebbleEngine.Builder().build();
     }
 
     private String fileToString(File f) {
@@ -89,23 +90,18 @@ public class WebHandler {
             exchange.getResponseSender().send(fileToString(index_cache));
             return;
         }
-        String s = resourceToString("/public/index.html");
-        String[] replacements = {"title", "head", "info", "faq"};
-        for (String p : replacements) {
+        Map<String,Object> replacements = new HashMap<>();
+        String[] keys = {"title", "head", "info", "faq"};
+        for (String p : keys) {
             String r = App.getConfig().getString("html." + p);
             if (r == null) {
                 r = "";
             }
-            if (r.startsWith("resource:")) {
-                r = resourceToString(r.substring(9));
-            } else if (r.startsWith("file:")) {
-                r = fileToString(App.getStorageDir().resolve(r.substring(5)).toString());
-            }
-            s = s.replace("{{" + p + "}}", r);
+            replacements.put(p, r);
         }
         try {
             FileWriter fw = new FileWriter(index_cache);
-            fw.write(s);
+            engine.getTemplate(TEMPLATE_INDEX).evaluate(fw, replacements);
             fw.flush();
             fw.close();
             index(exchange); // we created the file, now output it!
