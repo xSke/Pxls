@@ -27,7 +27,8 @@
                     <a href="/" class="nav-link">Pxls</a>
                 </li>
                 <li class="nav-item active">
-                    <a href="{{route_root}}" class="nav-link">{{profile_of.name | default("Anonymous")}}'s profile</a>
+                    {# eg "Alice's profile". Double singlequote is a java thing - needed if a replacement (such as this) contains a singlequote. #}
+                    <a href="{{route_root}}" class="nav-link">{{i18n('Localization', '{0}\'\'s Profile', profile_of.name | default("Anonymous")) | raw}}</a>
                 </li>
             </ul>
             {% if requesting_user is not null %}
@@ -37,8 +38,8 @@
                         <i class="fas fa-user-alt mr-1"></i>{{requesting_user.name}}
                     </button>
                     <div class="dropdown-menu dropdown-menu-right" id="navUserDropdown" aria-labelledby="btnNavUserDropdown">
-                        <a href="/profile?action=details" class="dropdown-item">My Profile</a>
-                        <a href="/profile?action=factions" class="dropdown-item">My Factions</a>
+                        <a href="/profile?action=details" class="dropdown-item">{{i18n('Localization', 'My Profile') | raw}}</a>
+                        <a href="/profile?action=factions" class="dropdown-item">{{i18n('Localization', 'My Factions') | raw}}</a>
                     </div>
                 </div>
             </div>
@@ -46,20 +47,20 @@
         </nav>
         <main role="main" class="mb-3">
             <div class="container">
-                <h1>{% if profile_of.displayedFaction | default(0) > 0 %}[{{profile_of.fetchDisplayedFaction.tag}}] {% endif %}{{profile_of.name | default("Anonymous")}}'s {{a}} Profile</h1>
+                <h1>{% if profile_of.displayedFaction | default(0) > 0 %}[{{profile_of.fetchDisplayedFaction.tag}}] {% endif %}{{i18n('Localization', '{0}\'\'s Profile', profile_of.name | default("Anonymous")) | raw}}</h1>
                 <hr>
                 <div class="row">
                     <div class="col-md-3">
                         <div class="list-group" id="tabsTriggers">
                             <a href="{{route_root}}?action=details" data-action="details" class="list-group-item text-light active">
-                                <i class="fas fa-id-card mr-2 d-none d-md-inline-block"></i>Info
+                                <i class="fas fa-id-card mr-2 d-none d-md-inline-block"></i>{{i18n('Localization', 'Info') | raw}}
                             </a>
                             {% if requested_self %}
                             <a href="{{route_root}}?action=reports" class="list-group-item text-light" data-action="reports">
-                                <i class="fas fa-flag mr-2 d-none d-md-inline-block"></i>Reports
+                                <i class="fas fa-flag mr-2 d-none d-md-inline-block"></i>{{i18n('Localization', 'Reports') | raw}}
                             </a>
                             <a href="{{route_root}}?action=factions" class="list-group-item text-light" data-action="factions">
-                                <i class="fas fa-users mr-2 d-none d-md-inline-block"></i>Factions
+                                <i class="fas fa-users mr-2 d-none d-md-inline-block"></i>{{i18n('Localization', 'Factions') | raw}}
                             </a>
                             {% endif %}
                         </div>
@@ -67,66 +68,66 @@
                     <div class="col-md-9 tab-content mt-3 mt-md-0" id="tabsWrapper">
                         <div id="tab-details" class="tab-pane text-center active" data-tab="details">
                             {% if profile_of is null %}
-                            <p class="text-warning text-center">You must be logged in to view your profile.</p>
+                            <p class="text-warning text-center">{{i18n('Localization', 'You must be logged in to view your profile.') | raw}}</p>
                             {% else %}
                             <h3>{{username}}</h3>
                             <table class="inline-block">
                                 <tbody>
                                     <tr>
-                                        <th class="text-right pr-3">Registration Date</th>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Registration Date') | raw}}</th>
                                         <td class="text-left">{{profile_of.signupTime | date("LLL d, y, hh:mm:s a (z)")}}</td>
                                     </tr>
                                     {% if not snip_mode %}
                                     <tr>
-                                        <th class="text-right pr-3">Alltime Pixels</th>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Alltime Pixels') | raw}}</th>
                                         <td class="text-left">{{profile_of.allTimePixelCount | numberformat("#,###")}}</td>
                                     </tr>
                                     <tr>
-                                        <th class="text-right pr-3">Current Canvas Pixels</th>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Current Canvas Pixels') | raw}}</th>
                                         <td class="text-left">{{profile_of.pixelCount | numberformat("#,###")}}</td>
                                     </tr>
                                     {% endif %}
                                     <tr>
-                                        <th class="text-right pr-3">Discord Tag</th>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Discord Tag') | raw}}</th>
                                         <td class="text-left">{{profile_of.discordName | default("Not Set")}}</td>
                                     </tr>
                                     <tr>
-                                        <th class="text-right pr-3">Faction</th>
-                                        <td class="text-left">{% if profile_of.displayedFaction | default(0) > 0 %}[{{profile_of.fetchDisplayedFaction.tag}}] {{profile_of.fetchDisplayedFaction.name}} (ID: {{profile_of.fetchDisplayedFaction.id}}){% else %}None{% endif %}</td>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Faction') | raw}}</th>
+                                        <td class="text-left">{% if profile_of.displayedFaction | default(0) > 0 %}[{{profile_of.fetchDisplayedFaction.tag}}] {{profile_of.fetchDisplayedFaction.name}} (ID: {{profile_of.fetchDisplayedFaction.id}}){% else %}{{i18n('Localization', 'None') | raw}}{% endif %}</td>
                                     </tr>
                                     <tr>
-                                        <th class="text-right pr-3">Roles</th>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Roles') | raw}}</th>
                                         <td class="text-left">{{profile_of.getRolesString() | default("None")}}</td>
                                     </tr>
                                     {% if profile_of.isBanned() %}
                                     <tr>
-                                        <th class="text-right pr-3">Canvas Ban Expiry</th>
-                                        <td class="text-left">{% if profile_of.isPermaBanned() %}Never{% else %}{{profile_of.getBanExpiryTime() | date("LLL d, y, hh:mm:s a (z)")}}{% endif %}</td>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Canvas Ban Expiry') | raw}}</th>
+                                        <td class="text-left">{% if profile_of.isPermaBanned() %}{{i18n('Localization', 'Never') | raw}}{% else %}{{profile_of.getBanExpiryTime() | date("LLL d, y, hh:mm:s a (z)")}}{% endif %}</td>
                                     </tr>
                                     {% endif %}
                                     {% if profile_of.isChatbanned() %}
                                     <tr>
-                                        <th class="text-right pr-3">Chat Ban Expiry</th>
-                                        <td class="text-left">{% if profile_of.isPermaChatbanned() %}Never{% else %}{{profile_of.getChatBanExpiryTime() | date("LLL d, y, hh:mm:s a (z)")}}{% endif %}</td>
+                                        <th class="text-right pr-3">{{i18n('Localization', 'Chat Ban Expiry') | raw}}</th>
+                                        <td class="text-left">{% if profile_of.isPermaChatbanned() %}{{i18n('Localization', 'Never') | raw}}{% else %}{{profile_of.getChatBanExpiryTime() | date("LLL d, y, hh:mm:s a (z)")}}{% endif %}</td>
                                     </tr>
                                     {% endif %}
                                 </tbody>
                             </table>
                             <div class="d-block mt-4">
-                                View rankings and other stats <a href="/stats">here</a>.
+                                {{i18n('Localization', 'View rankings and other stats <a href="/stats">here</a>.') | raw | raw}}
                             </div>
                             {% endif %}
                         </div>
                         {% if requested_self %}
                         <div id="tab-reports" class="tab-pane" data-tab="reports">
                             {% if profile_of is null %}
-                            <p class="text-warning text-center">You must be logged in to view your reports.</p>
+                            <p class="text-warning text-center">{{i18n('Localization', 'You must be logged in to view your reports.') | raw}}</p>
                             {% else %}
-                            <h3 class="text-center">Reports</h3>
+                            <h3 class="text-center">{{i18n('Localization', 'Reports') | raw}}</h3>
                             <div class="card collapseable mb-2">
                                 <div class="card-header">
                                     <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                    <span class="text-info">Canvas Reports ({{canvas_reports_open_count}}/{{canvas_reports|length}} open)</span>
+                                    <span class="text-info">{{i18n('Localization', 'Canvas Reports ({0}/{1} open)', [canvas_reports_open_count, canvas_reports|length]) | raw}}</span>
                                 </div>
                                 <div class="card-body p-0 body-collapse-target collapse">
                                     <div class="p-3">
@@ -135,17 +136,26 @@
                                         <div class="card collapseable mb-2">
                                             <div class="card-header">
                                                 <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                                <span class="{% if report.closed %}text-success{% else %}text-warning{% endif %}">Report on {{ reportedName }} ({% if report.closed %}closed{% else %}open{% endif %})</span>
+                                                <span class="{% if report.closed %}text-success{% else %}text-warning{% endif %}">
+                                                    ({% if report.closed %}
+                                                    {# eg "Report on Bob (closed) #}
+                                                    {{i18n('Localization', 'Report on {0} (closed)', reportedName) | raw}}
+                                                    {% else %}
+                                                    {# eg "Report on Bob (open) #}
+                                                    {{i18n('Localization', 'Report on {0} (open)', reportedName) | raw}}
+                                                    {% endif %}
+                                                </span>
                                             </div>
                                             <div class="card-body p-0 body-collapse-target collapse">
                                                 <div class="p-3">
-                                                    <h6>Reported {{reportedName}} on {{(report.time*1000)|date("LLL d, y, hh:m:s a (z)")}}</h6>
+                                                    {# eg "Reported Bob on Jan 1, 1970, 00:00:00 AM (UTC) #}
+                                                    <h6>{{i18n('Localization', 'Reported {0} on {1}', [reportedName, (report.time*1000)|date("LLL d, y, hh:mm:s a (z)")]) | raw}}</h6>
                                                     <p>{{report.message}}</p>
                                                 </div>
                                             </div>
                                         </div>
                                         {% else %}
-                                        <p>There are no canvas reports to show.</p>
+                                        <p>{{i18n('Localization', 'There are no canvas reports to show.') | raw}}</p>
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -153,7 +163,7 @@
                             <div class="card collapseable mb-2">
                                 <div class="card-header">
                                     <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                    <span class="text-info">Chat Reports ({{chat_reports_open_count}}/{{chat_reports|length}} open)</span>
+                                    <span class="text-info">{{i18n('Localization', 'Chat Reports ({0}/{1} open)', [chat_reports_open_count, chat_reports|length]) | raw}}</span>
                                 </div>
                                 <div class="card-body p-0 body-collapse-target collapse">
                                     <div class="p-3">
@@ -162,17 +172,23 @@
                                         <div class="card collapseable mb-2">
                                             <div class="card-header">
                                                 <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                                <span class="{% if report.closed %}text-success{% else %}text-warning{% endif %}">Report on {{ reportedName }} ({% if report.closed %}closed{% else %}open{% endif %})</span>
+                                                <span class="{% if report.closed %}text-success{% else %}text-warning{% endif %}">
+                                                    ({% if report.closed %}
+                                                    {{i18n('Localization', 'Report on {0} (closed)', reportedName) | raw}}
+                                                    {% else %}
+                                                    {{i18n('Localization', 'Report on {0} (open)', reportedName) | raw}}
+                                                    {% endif %}
+                                                </span>
                                             </div>
                                             <div class="card-body p-0 body-collapse-target collapse">
                                                 <div class="p-3">
-                                                    <h6>Reported {{reportedName}} on {{(report.time*1000)|date("LLL d, y, h:mm:s a (z)")}}</h6>
+                                                    <h6>{{i18n('Localization', 'Reported {0} on {1}', [reportedName, (report.time*1000)|date("LLL d, y, hh:mm:s a (z)")]) | raw}}</h6>
                                                     <p>{{report.report_message}}</p>
                                                 </div>
                                             </div>
                                         </div>
                                         {% else %}
-                                        <p>There are no chat reports to show.</p>
+                                        <p>{{i18n('Localization', 'There are no chat reports to show.') | raw}}</p>
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -181,46 +197,60 @@
                         </div>
                         <div id="tab-factions" class="tab-pane" data-tab="factions">
                             {% if profile_of is null %}
-                            <p class="text-center text-warning">You must be logged in to manage your factions.</p>
+                            <p class="text-center text-warning">{{i18n('Localization', 'You must be logged in to manage your factions.') | raw}}</p>
                             {% else %}
                             {% if profile_of.isFactionRestricted or profile_of.isBanned %}
-                            <small class="text-danger m-0 p-0 d-block">You are {% if profile_of.isFactionRestricted %}faction restricted{% else %}canvas banned{% endif %} and cannot create new factions. If you believe this is an error, please contact a moderator.</small>
+                            <small class="text-danger m-0 p-0 d-block">
+                                {% if profile_of.isFactionRestricted %}
+                                {{i18n('Localization', 'You are faction restricted and cannot create new factions. If you believe this is an error, please contact a moderator.') | raw}}
+                                {% else %}
+                                {{i18n('Localization', 'You are canvas banned and cannot create new factions. If you believe this is an error, please contact a moderator.') | raw}}
+                                {% endif %}
+                            </small>
                             {% endif %}
                             {% if (new_fac_min_pixels|default(0)) > requesting_user_alltime_pixels %}
-                            <small class="text-warning m-0 p-0 d-block">You must have at least {{new_fac_min_pixels|default(0)}} all-time pixels to create a faction.</small>
+                            <small class="text-warning m-0 p-0 d-block">{{i18n('Localization', 'You must have at least {0} all-time pixels to create a faction.', new_fac_min_pixels|default(0)) | raw}}</small>
                             {% endif %}
                             <div class="mb-2">
-                                <button class="btn btn-success btn-sm mr-1 global-faction-action" data-action="factionCreate" {% if ((new_fac_min_pixels|default(0)) > requesting_user_alltime_pixels) or (profile_of.isFactionRestricted) %}disabled="disabled"{% endif %}><i class="fas fa-plus"></i> Create</button>
-                                <button class="btn btn-primary btn-sm mr-1 global-faction-action" data-toggle="modal" data-target="#modal-faction-search"><i class="fas fa-user-plus"></i> Join</button>
+                                <button class="btn btn-success btn-sm mr-1 global-faction-action" data-action="factionCreate" {% if ((new_fac_min_pixels|default(0)) > requesting_user_alltime_pixels) or (profile_of.isFactionRestricted) %}disabled="disabled"{% endif %}><i class="fas fa-plus"></i> {{i18n('Localization', 'Create') | raw}}</button>
+                                <button class="btn btn-primary btn-sm mr-1 global-faction-action" data-toggle="modal" data-target="#modal-faction-search"><i class="fas fa-user-plus"></i> {{i18n('Localization', 'Join') | raw}}</button>
                             </div>
                             {% if factions|length > 0 %}
                             {% for faction in factions %}
                             <div class="media mb-2 faction-media" data-faction-id="{{faction.id}}" data-faction-name="{{faction.name}}" data-faction-tag="{{faction.tag}}" data-faction-color="{{faction.color|default(0)}}">
                                 <span class="media-text-icon mr-3">[{{faction.tag}}]</span>
                                 <div class="media-body">
-                                    <h5 class="mt-0 mb-1">{% if profile_of.displayedFaction|default(-1) == faction.id %} <i class="fas fa-eye mr-1 text-success" style="font-size: 0.75em;" title="This is your currently displayed faction."></i>{% endif %}{{faction.name}} (members: {{faction.fetchMembers|length}}, ID: {{faction.id}})</h5>
+                                    <h5 class="mt-0 mb-1">
+                                        {% if profile_of.displayedFaction|default(-1) == faction.id %} 
+                                        <i class="fas fa-eye mr-1 text-success" style="font-size: 0.75em;" title="{{i18n('Localization', 'This is your currently displayed faction.') | raw}}"></i>
+                                        {% endif %}
+                                        {# eg "Pixelers (members: 100, ID: 1)" #}
+                                        {{i18n('Localization', '{0} (members: {1}, ID: {2}', [faction.name, faction.fetchMembers|length, faction.id]) | raw}}
+                                    </h5>
                                     <div class="mb-1 mt-2">
-                                        <span class="text-muted">Owner: {{faction.fetchOwner.name}}</span>
+                                        <span class="text-muted">{{i18n('Localization', 'Owner: {0}', faction.fetchOwner.name) | raw}}</span>
                                     </div>
                                     <div>
                                         {% if profile_of.displayedFaction|default(-1) == faction.id %}
-                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionRemoveDisplayed"><i class="fas fa-minus mr-1"></i>Remove Displayed</button>
+                                        {# makes the faction no longer the one displayed for the current user #}
+                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionRemoveDisplayed"><i class="fas fa-minus mr-1"></i>{{i18n('Localization', 'Remove Displayed') | raw}}</button>
                                         {% else %}
-                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionSetDisplayed"><i class="fas fa-check mr-1"></i>Set Displayed</button>
+                                        {# makes the faction the one displayed for the current user #}
+                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionSetDisplayed"><i class="fas fa-check mr-1"></i>{{i18n('Localization', 'Set Displayed') | raw}}</button>
                                         {% endif %}
                                         {% if faction.owner == profile_of.id %}
-                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionMembers" data-toggle="modal" data-target="#modal-member-list-{{faction.id}}"><i class="fas fa-users mr-1"></i>Members</button>
-                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionEdit"><i class="fas fa-pencil-alt mr-1"></i>Edit</button>
-                                        <button class="btn btn-danger btn-sm mr-1 mt-1 faction-action" data-action="factionDelete"><i class="fas fa-times mr-1"></i>Delete</button>
+                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionMembers" data-toggle="modal" data-target="#modal-member-list-{{faction.id}}"><i class="fas fa-users mr-1"></i>{{i18n('Localization', 'Members') | raw}}</button>
+                                        <button class="btn btn-info btn-sm mr-1 mt-1 faction-action" data-action="factionEdit"><i class="fas fa-pencil-alt mr-1"></i>{{i18n('Localization', 'Edit') | raw}}</button>
+                                        <button class="btn btn-danger btn-sm mr-1 mt-1 faction-action" data-action="factionDelete"><i class="fas fa-times mr-1"></i>{{i18n('Localization', 'Delete') | raw}}</button>
                                         {% else %}
-                                        <button class="btn btn-danger btn-sm mr-1 mt-1 faction-action" data-action="factionLeave"><i class="fas fa-sign-out-alt mr-1"></i>Leave</button>
+                                        <button class="btn btn-danger btn-sm mr-1 mt-1 faction-action" data-action="factionLeave"><i class="fas fa-sign-out-alt mr-1"></i>{{i18n('Localization', 'Leave') | raw}}</button>
                                         {% endif %}
                                     </div>
                                 </div>
                             </div>
                             {% endfor %}
                             {% else %}
-                            <p class="text-center text-warning">You are not in any factions yet!</p>
+                            <p class="text-center text-warning">{{i18n('Localization', 'You are not in any factions yet!') | raw}}</p>
                             {% endif %}
                             {% endif %}
                         </div>
@@ -236,8 +266,8 @@
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Members of {{faction.name}} ([{{faction.tag}}])</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <h5 class="modal-title">{{i18n('Localization', 'Members of {0} ([{1}])', [faction.name, faction.tag]) | raw}}</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="{{i18n('Localization', 'Close') | raw}}">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
@@ -245,7 +275,7 @@
                         <div class="card collapseable mb-2">
                             <div class="card-header">
                                 <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                <span class="text-info">Faction Members</span>
+                                <span class="text-info">{{i18n('Localization', 'Faction Members') | raw}}</span>
                             </div>
                             <div class="card-body p-0 body-collapse-target collapse">
                                 <div class="p-3">
@@ -259,14 +289,15 @@
                                             <span><a href="/profile/{{member.name}}" target="_blank">{{member.name}}</a></span>
                                         </div>
                                         <div class="col-md-6 text-right">
-                                            <button class="btn btn-sm btn-success faction-subaction" data-action="transfer">Transfer Ownership</button>
-                                            <button class="btn btn-sm btn-danger faction-subaction" data-action="ban">Ban</button>
+                                            <button class="btn btn-sm btn-success faction-subaction" data-action="transfer">{{i18n('Localization', 'Transfer Ownership') | raw}}</button>
+                                            {# bans a user from the faction #}
+                                            <button class="btn btn-sm btn-danger faction-subaction" data-action="ban">{{i18n('Localization', 'Ban') | raw}}</button>
                                         </div>
                                     </div>
                                     {% endif %}
                                     {% endfor %}
                                     {% else %}
-                                    <p class="text-muted text-center mb-0">Nothing to see here!</p>
+                                    <p class="text-muted text-center mb-0">{{i18n('Localization', 'Nothing to see here!') | raw}}</p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -274,7 +305,7 @@
                         <div class="card collapseable mb-2">
                             <div class="card-header">
                                 <button class="btn btn-sm mr-2 btn-info" data-action="collapse"><i class="fas fa-chevron-down"></i></button>
-                                <span class="text-info">Faction Bans</span>
+                                <span class="text-info">{{i18n('Localization', 'Faction Bans') | raw}}</span>
                             </div>
                             <div class="card-body p-0 body-collapse-target collapse">
                                 <div class="p-3">
@@ -284,18 +315,18 @@
                                             <span>{{member.name}}</span>
                                         </div>
                                         <div class="col-md-6 text-right">
-                                            <button class="btn btn-sm btn-primary faction-subaction" data-action="unban">Unban</button>
+                                            <button class="btn btn-sm btn-primary faction-subaction" data-action="unban">{{i18n('Localization', 'Unban') | raw}}</button>
                                         </div>
                                     </div>
                                     {% else %}
-                                    <p class="text-muted text-center mb-0">Nothing to see here!</p>
+                                    <p class="text-muted text-center mb-0">{{i18n('Localization', 'Nothing to see here!') | raw}}</p>
                                     {% endfor %}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{i18n('Localization', 'Close') | raw}}</button>
                     </div>
                 </div>
             </div>
@@ -307,8 +338,8 @@
             <div class="modal-dialog modal-xl" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Find A Faction</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <h5 class="modal-title">{{i18n('Localization', 'Find A Faction') | raw}}</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="{{i18n('Localization', 'Close') | raw}}">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
@@ -317,7 +348,7 @@
                             <div class="form-group">
                                 <div class="input-group flex-nowrap">
                                     <div class="input-group-prepend">
-                                        <label class="input-group-text" for="txtFactionSearch">Search:</label>
+                                        <label class="input-group-text" for="txtFactionSearch">{{i18n('Localization', 'Search:') | raw}}</label>
                                     </div>
                                     <input type="text" class="form-control" autocomplete="disabled" id="txtFactionSearch" required>
                                     <div class="input-group-append">
@@ -327,12 +358,12 @@
                             </div>
                         </form>
                         <div id="searchTarget" class="m-0 px-0 py-2">
-                            <p class="text-muted text-center">Enter a search term to get started.</p>
+                            <p class="text-muted text-center">{{i18n('Localization', 'Enter a search term to get started.') | raw}}</p>
                         </div>
-                        <button class="btn btn-block btn-sm btn-secondary d-none" id="btnFactionSearchLoadMore">Load More</button>
+                        <button class="btn btn-block btn-sm btn-secondary d-none" id="btnFactionSearchLoadMore">{{i18n('Localization', 'Load More') | raw}}</button>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">{{i18n('Localization', 'Close') | raw}}</button>
                     </div>
                 </div>
             </div>

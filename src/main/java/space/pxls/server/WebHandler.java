@@ -37,6 +37,7 @@ public class WebHandler {
     private Map<String, AuthService> services = new ConcurrentHashMap<>();
     public static final String TEMPLATE_PROFILE = "public/pebble_templates/profile.html";
     public static final String TEMPLATE_40X = "public/pebble_templates/40x.html";
+    public static final String TEMPLATE_INDEX = "public/pebble_templates/index.html";
 
     public WebHandler() {
         addServiceIfAvailable("reddit", new RedditAuthService("reddit"));
@@ -45,7 +46,7 @@ public class WebHandler {
         addServiceIfAvailable("vk", new VKAuthService("vk"));
         addServiceIfAvailable("tumblr", new TumblrAuthService("tumblr"));
 
-        engine = new PebbleEngine.Builder().loader(new ClasspathLoader(getClass().getClassLoader())).build();
+        engine = new PebbleEngine.Builder().build();
     }
 
     private String fileToString(File f) {
@@ -83,29 +84,30 @@ public class WebHandler {
     }
 
     public void index(HttpServerExchange exchange) {
-        File index_cache = new File(App.getStorageDir().resolve("index_cache.html").toString());
+        Locale locale = Util.negotiateLocale(exchange);
+        String languageTag = locale.toLanguageTag();
+
+        File index_cache = new File(App.getStorageDir().resolve("index_" + languageTag + "_cache.html").toString());
         if (index_cache.exists()) {
+            exchange.getResponseHeaders().put(Headers.CONTENT_LANGUAGE, languageTag);
             exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/html");
             exchange.getResponseSender().send(fileToString(index_cache));
             return;
         }
-        String s = resourceToString("/public/index.html");
-        String[] replacements = {"title", "head", "info", "faq"};
-        for (String p : replacements) {
+        
+        Map<String,Object> variables = new HashMap<>();
+
+        String[] keys = {"title", "head", "info", "faq"};
+        for (String p : keys) {
             String r = App.getConfig().getString("html." + p);
             if (r == null) {
                 r = "";
             }
-            if (r.startsWith("resource:")) {
-                r = resourceToString(r.substring(9));
-            } else if (r.startsWith("file:")) {
-                r = fileToString(App.getStorageDir().resolve(r.substring(5)).toString());
-            }
-            s = s.replace("{{" + p + "}}", r);
+            variables.put(p, r);
         }
         try {
             FileWriter fw = new FileWriter(index_cache);
-            fw.write(s);
+            engine.getTemplate(TEMPLATE_INDEX).evaluate(fw, variables, locale);
             fw.flush();
             fw.close();
             index(exchange); // we created the file, now output it!
@@ -126,8 +128,14 @@ public class WebHandler {
         String toRet = String.format("<p style=\"text-align: center;\">Socc broke the %d page! Let someone know please :) <a href=\"/\">Back to Root</a></p>", x);
         try {
             Writer writer = new StringWriter();
-            engine.getTemplate(TEMPLATE_40X).evaluate(writer, m);
+            
+            Locale locale = Util.negotiateLocale(exchange);
+            String languageTag = locale.toLanguageTag();
+
+            engine.getTemplate(TEMPLATE_40X).evaluate(writer, m, locale);
             toRet = writer.toString();
+
+            exchange.getResponseHeaders().put(Headers.CONTENT_LANGUAGE, languageTag);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -184,9 +192,14 @@ public class WebHandler {
                         m.put("canvas_reports_open_count", canvasReports.stream().filter(dbCanvasReport -> !dbCanvasReport.closed).count());
                     }
 
+                    Locale locale = Util.negotiateLocale(exchange);
+                    String languageTag = locale.toLanguageTag();
+
                     Writer writer = new StringWriter();
-                    engine.getTemplate(TEMPLATE_PROFILE).evaluate(writer, m);
+                    engine.getTemplate(TEMPLATE_PROFILE).evaluate(writer, m, locale);
                     toRet = writer.toString();
+
+                    exchange.getResponseHeaders().put(Headers.CONTENT_LANGUAGE, languageTag);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

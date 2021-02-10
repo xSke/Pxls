@@ -2,8 +2,11 @@ package space.pxls.util;
 
 import com.typesafe.config.ConfigException;
 
-import java.util.Random;
+import java.util.*;
 import java.util.function.Supplier;
+
+import io.undertow.server.HttpServerExchange;
+import io.undertow.util.*;
 
 public class Util {
     public static String generateRandomToken() {
@@ -32,4 +35,21 @@ public class Util {
             return val;
         }
     }
+
+    private static ResourceBundle localization = ResourceBundle.getBundle("Localization");
+
+    public static String i18n(String s) {
+        return localization.getString(s);
+    }
+
+    public static Locale negotiateLocale(HttpServerExchange exchange) {
+        List<Locale> locales = LocaleUtils.getLocalesFromHeader(exchange.getRequestHeaders().get(Headers.ACCEPT_LANGUAGE));
+        locales.retainAll(SUPPORTED_LOCALES);
+        locales.add(FALLBACK_LOCALE);
+
+        return locales.get(0);
+    }
+
+    public static List<Locale> SUPPORTED_LOCALES = List.of(Locale.forLanguageTag("en-US"));
+    public static Locale FALLBACK_LOCALE = SUPPORTED_LOCALES.get(0);
 }
