@@ -1005,7 +1005,7 @@ body:not(.show-placeable-bubble) #placeableInfoBubble {
     image-rendering: crisp-edges;
 }
 
-#board-template {
+.board-template {
     position: absolute;
     pointer-events: none;
     top: 0;
@@ -1013,7 +1013,7 @@ body:not(.show-placeable-bubble) #placeableInfoBubble {
     margin: 0;
 }
 
-#board-container:not(.lower-template) #board-template {
+#board-container:not(.lower-template) .board-template {
     z-index: 3;
 }
 

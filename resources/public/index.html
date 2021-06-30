@@ -589,7 +589,7 @@
                             <input class="fullwidth" type="text" id="template-title">
                         </label>
                     </div>
-                    <div data-keywords="template location;template source;template=">
+                    <div data-keywords="template location source;template source URL;template URL;template=">
                         <label class="input-group">
                             <span class="label-text">URL:</span>
                             <input class="fullwidth" type="text" id="template-url" autocomplete="off">
@@ -606,19 +606,47 @@
                             <input type="number" min="0" class="template-coords small-input" id="template-coords-y">
                         </label>
                     </div>
-                    <div data-keywords="template transparency;template opacity;oo=">
-                        <label class="input-group">
-                            <span class="label-text">Opacity:</span>
-                            <input type="range" id="template-opacity" min="0" max="1" step="0.01" value="0.5">
-                            <span class="range-text-value" id="template-opacity-percentage">50%</span>
-                        </label>
-                    </div>
                     <div data-keywords="template width;tw=">
                         <label class="input-group">
                             <span class="label-text">Width:</span>
                             <input type="number" id="template-width" class="small-input" min="0">
                         </label>
                         <button class="text-button" id="template-width-reset">Reset</button>
+                    </div>
+                    <div data-keywords="template style;custom template">
+                        <label class="input-group">
+                            <span class="label-text">Style:</span>
+                            <select id="template-style-mode">
+                                <option value="">Use Source Style</option>
+                                <option value="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAQAAAD9CzEMAAAAAmJLR0QA/4ePzL8AAAAzSURBVFjD7dBBDQAACMSw828aVEAI6R4T0GShGv6DECFChAgRIkSIECFChAgRIkSIruA0nub+AuTzLZoAAAAASUVORK5CYII=">Dotted (Small, 1:2)</option>
+                                <option value=" data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAWklEQVR42u3UwQkAIAwEwcX+e9aP2INkBvK4d2CLqva9cXv5PWgAoAGgARoAGqABoAEaABqgAaABGgAaoAGgARoAGqABoAEaABqgAaABGgAaoAGgAT/vRwOmO8dS/DI1VxCbAAAAAElFTkSuQmCC">Dotted (Big, 2:2)</option>
+                                <option value=" data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALAAAACwCAYAAACvt+ReAAAE10lEQVR42u3d3bKjKBQGULDy/q/MXE1VdzqRH9kqZq2bqZn5JKAmErbm5JRSSbCw0pGTlb1VdttpoAS9AUpANgW1u0q2dGxTOo7faLu92TTa7vZlozz55P2/zRyQ7RXRj97+zsyWjm1GT97aGI9kR8aWaydwxIEg7g05ms0nvcnCsq8bzrVnvVNr2RyQzReP7eeO33bBp0We/E6NnJr0nJAR7UZOpR5x/LYEC9smrCyMrETMXErpvazd4fI9c3+VnW/2teze8Ss7qwAt7ZYJ50y13deqk/fBbVYb28iY8mLZvf9ebTcnlTgeOIWAZShJyi6bfX3YOH84sfOXF7oyW3amQrXs++vMarc3m7/048w+rJT957htlU/i3HCQ93J77R7N5o4vD+/ZUvmSkRvHdiSbOvqwt/2RbA7av6cdt+0Bqw8jlMDX9M9xq5WS71xKjS5VtmxbDvZ3JJsDsvnEsU09dq+GM75MPnl72s2VQZx1JehdA23pb8/YevdDax/KhWMrM84Vy2gs7dOXuJGSZMslYLTUWbsUtbT7nm25ibqlhPqp3Z7+po7+RuyHnj707t/S8fql8/XLyHzE2qPs7bJKyTxmCgFLcimSXTa7fdiwfPn3NDGbgtq9ezYNZke++JaAbApqdzj75zrw+9rd3lrekeye1vsljmZ7+5snZL/1q2clJw3uwxnZXlGPWP3VX3PgNSh9f/HaeaeXzk+FEpzNAdl88dhSQPanjttWeafX7lZq/ZRovQPqSLanDyWo3ci70XqyvXeutbQbeVdez91onkrmmVOII3c1RV02I+8Ei2g36sc/SuOVo+WSfKS/EdOfw/2wnii7bFYpmaWZA7M8lyLZZbOvD0sUf/4z7XyJ68n++f88PfyDTw9H9WHWI0W17JFHXmqv+WnHzcymjj7Utj2yvpwC9u/yx+3uc2Al1DWddtxelfnw7DJjxI9Kt14pSuM7flY2B2TzxWO73XF7/12IM8qMtXeuEmpDCfWEsR2dSvVOu4ZuWbCMxtJaf9gkHcjNKM3WVgBqlzGl7/7+HhlfrfQ9ejdaOXqSysreKquUzNLMgVmeS5Hsstlv9wMroY5lW7+4KH1Pyr6vQiihHnsquTSMy1Pf4/v3n6w58FxK3yf7VkpWQo35M7Ol4xPzvd0SnM0B2Rw9tq1y+f7Fp4fPOHlr/SgdYysHxta7H3pOyIh2/a1kfmMK0fqJ0rrd3Uq5nh6O3Q8peP8Obywre6usUjJLMwdmeS5Fsstma6Xkb8scSqjPyC5/3Fp+nfKbI0+hRq0vp45s72MsOaC/V2eXP26z5sBKqGta/rjNWgfuyfrh7Pix/cxx2w68Iy95CvWiS5wfzt7f/rKnvi2j8egpxC2fQr355TCiXU9972xrPVF22axSMo+aQkCUsCU7lyLZM7Lhn8BKqOf39xdL31PN+kOHSqhj+yF1ju0ppe+wE9h8jKW/xK1WQj1D5GM3I9mIH5vOF49tyifwij/AfOYndk8JNqLNiDJ/CWr3tOOmlMxjphB+gPn4VErp+4Jpn3VK2TOyYXM7pWTO+h4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE/1H4IIqRgL4W2oAAAAAElFTkSuQmCC">Numbers</option>
+                                <option value="" id="template-style-mode-custom">Custom&hellip;</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div data-keywords="template style source;template style URL;custom style URL;custom template">
+                        <label class="input-group">
+                            <span class="label-text">Custom style URL:</span>
+                            <input class="fullwidth" type="text" id="template-custom-style-url">
+                        </label>
+                        <label id="template-style-error-warning" for="template-style-url" class="text-red extra-label"></label>
+                    </div>
+                    <div data-keywords="template conversion;template palette conversion;convert to palette">
+                        <label class="input-group">
+                            <span class="label-text">Color Conversion Mode:</span>
+                            <select id="template-conversion-mode-select">
+                                <option value="unconverted">Unconverted</option>
+                                <option value="nearestCustom">Nearest Custom</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div data-keywords="template transparency;template opacity;oo=">
+                        <label class="input-group">
+                            <span class="label-text">Opacity:</span>
+                            <input type="range" id="template-opacity" min="0" max="1" step="0.01" value="0.5">
+                            <span class="range-text-value" id="template-opacity-percentage">50%</span>
+                        </label>
                     </div>
                 </section>
             </section>

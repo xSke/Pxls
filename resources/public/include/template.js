@@ -4,21 +4,66 @@ let uiHelper;
 
 // here all the template stuff happens
 module.exports.template = (function() {
+  const STYLES_Y = 16;
+  const STYLES_X = 16;
   const self = {
     elements: {
-      template: null,
+      visibles: null, // set to a collection of template and sourceImage in init
+      template: $('<canvas>'),
+      sourceImage: $('<img>').attr({ crossOrigin: '' }),
+      styleImage: $('<img>'),
       useCheckbox: $('#template-use'),
       titleInput: $('#template-title'),
       urlInput: $('#template-url'),
       imageErrorWarning: $('#template-image-error-warning'),
       coordsXInput: $('#template-coords-x'),
       coordsYInput: $('#template-coords-y'),
-      opacityInput: $('#template-opacity'),
-      opacityPercentage: $('#template-opacity-percentage'),
       widthInput: $('#template-width'),
-      widthResetBtn: $('#template-width-reset')
+      widthResetBtn: $('#template-width-reset'),
+      styleSelect: $('#template-style-mode'),
+      styleOptionCustom: $('#template-style-mode-custom'),
+      customStyleInput: $('#template-custom-style-url'),
+      conversionModeSelect: $('#template-conversion-mode-select'),
+      opacityInput: $('#template-opacity'),
+      opacityPercentage: $('#template-opacity-percentage')
+    },
+    gl: {
+      context: null,
+      textures: {
+        source: null,
+        // this is used as the color attachment of the intermediate framebuffer
+        downscaled: null,
+        style: null
+      },
+      framebuffers: {
+        // this null is final - it's how the default framebuffer is specified in WebGL
+        main: null,
+        // this is the buffer into which a 1-to-1 template image is drawn.
+        intermediate: null
+      },
+      buffers: {
+        vertex: null
+      },
+      programs: {
+        downscaling: {
+          unconverted: null,
+          nearestCustom: null
+        },
+        stylize: null
+      }
+    },
+    corsProxy: {
+      base: undefined,
+      param: null,
+      // a list of sites that will already serve cors-enabled content
+      safeHosts: [
+        'imgur.com',
+        'pxlsfiddle.com',
+        window.location.host
+      ]
     },
     queueTimer: 0,
+    loading: false,
     _queuedUpdates: {},
     _defaults: {
       url: '',
@@ -26,77 +71,47 @@ module.exports.template = (function() {
       y: 0,
       width: -1,
       opacity: 0.5,
-      title: ''
+      title: '',
+      convertMode: 'unconverted',
+      style: undefined
     },
     options: {},
-    lazy_init: function() {
-      if (self.elements.template != null) { // already inited
-        return;
-      }
-      self.options.use = true;
+    initCORS: function(base, param) {
+      self.corsProxy.base = base;
+      self.corsProxy.param = param;
 
-      self.elements.imageErrorWarning.empty();
-      self.elements.imageErrorWarning.hide();
-
-      const drag = {
-        x: 0,
-        y: 0
-      };
-      self.elements.template = $('<img>').addClass('noselect').attr({
-        id: 'board-template',
-        src: self.options.url,
-        alt: 'template'
-      }).css({
-        top: self.options.y,
-        left: self.options.x,
-        opacity: self.options.opacity,
-        width: self.options.width === -1 ? 'auto' : self.options.width
-      }).data('dragging', false).on('mousedown pointerdown', function(evt) {
-        evt.preventDefault();
-        $(this).data('dragging', true);
-        drag.x = evt.clientX;
-        drag.y = evt.clientY;
-        evt.stopPropagation();
-      }).on('mouseup pointerup', function(evt) {
-        evt.preventDefault();
-        $(this).data('dragging', false);
-        evt.stopPropagation();
-      }).on('mousemove pointermove', function(evt) {
-        evt.preventDefault();
-        if ($(this).data('dragging')) {
-          if (!evt.ctrlKey && !evt.altKey) {
-            self.stopDragging();
-            return;
-          }
-          const pxOld = board.fromScreen(drag.x, drag.y);
-          const pxNew = board.fromScreen(evt.clientX, evt.clientY);
-          const dx = (pxNew.x) - (pxOld.x);
-          const dy = (pxNew.y) - (pxOld.y);
-          const newX = self.options.x + dx;
-          const newY = self.options.y + dy;
-          self._update({ x: newX, y: newY });
-          query.set({ ox: newX, oy: newY }, true);
-          if (dx !== 0) {
-            drag.x = evt.clientX;
-          }
-          if (dy !== 0) {
-            drag.y = evt.clientY;
+      self.loadImage();
+    },
+    cors: function(location) {
+      try {
+        const url = new URL(location);
+        if (self.corsProxy.safeHosts.some(h => url.hostname.endsWith(h))) {
+          return url.href;
+        } else {
+          if (self.corsProxy.param) {
+            return `${self.corsProxy.base}?${self.corsProxy.param}=${encodeURIComponent(url.href)}`;
+          } else {
+            return `${self.corsProxy.base}/${url.href}`;
           }
         }
-      }).on('load', (e) => {
-        if (self.options.width < 0) {
-          self.elements.widthInput.val(self.elements.template.width());
-        }
-        self.elements.template.toggleClass('pixelate', query.get('scale') > self.getWidthRatio());
-      }).on('error', () => {
-        self.elements.imageErrorWarning.show();
-        self.elements.imageErrorWarning.text('There was an error getting the image');
-        self.elements.template.remove();
-      });
-      if (board.update(true)) {
-        return;
+      } catch (e) {
+        // invalid URLs fail silently.
+        return location;
       }
-      board.getRenderBoard().parent().prepend(self.elements.template);
+    },
+    loadImage: function() {
+      if (self.corsProxy.base !== undefined) {
+        self.loading = true;
+
+        self.options.use = true;
+
+        self.elements.imageErrorWarning.empty();
+        self.elements.imageErrorWarning.hide();
+
+        self.elements.sourceImage.attr({
+          src: self.cors(self.options.url)
+        });
+      }
     },
     updateSettings: function() {
       self.elements.useCheckbox.prop('checked', self.options.use);
@@ -122,16 +137,25 @@ module.exports.template = (function() {
       if (self.options.width >= 0) {
         self.elements.widthInput.val(self.options.width);
       } else if (self.elements.template) {
-        self.elements.widthInput.val(self.elements.template.width());
+        self.elements.widthInput.val(self.getSourceWidth());
       } else {
         self.elements.widthInput.val(null);
       }
+
+      self.elements.conversionModeSelect.val(self.options.convertMode);
+      const styles = Array.from(self.elements.styleSelect.children('option')).map(o => o.value);
+      const style = self.elements.styleImage.attr('src');
+
+      if (!styles.includes(style)) {
+        self.elements.customStyleInput.val(style);
+      }
+      self.elements.styleSelect.val(style);
     },
     normalizeTemplateObj(objectToNormalize, direction) {
       // direction: true = url_to_template_obj, else = template_obj_to_url
       // normalize the given update object with settings that may be present from someone guessing options based on the URL
 
-      const iterOver = [['tw', 'width'], ['ox', 'x'], ['oy', 'y'], ['oo', 'opacity'], ['template', 'url'], ['title', 'title']];
+      const iterOver = [['tw', 'width'], ['ox', 'x'], ['oy', 'y'], ['oo', 'opacity'], ['template', 'url'], ['title', 'title'], ['convert', 'convertMode']];
       if (direction !== true) {
         for (let i = 0; i < iterOver.length; i++) { iterOver[i].reverse(); }
       }
@@ -163,7 +187,7 @@ module.exports.template = (function() {
         return;
       }
 
-      const urlUpdated = (options.url !== self.options.url && decodeURIComponent(options.url) !== self.options.url && options.url != null && self.options.url != null);
+      const urlUpdated = (options.url !== self.options.url && decodeURIComponent(options.url) !== self.options.url && options.url != null);
       if (options.url != null && options.url.length > 0) {
         options.url = decodeURIComponent(options.url);
       }
@@ -173,7 +197,7 @@ module.exports.template = (function() {
 
       // fix for `width` and other props being set after disabling template with the 'v' key then enabling a template without said prop set in the URL.
       if (urlUpdated && !self.options.use) {
-        ['width', 'x', 'y', 'opacity'].forEach(x => {
+        ['width', 'x', 'y', 'opacity', 'convertMode'].forEach(x => {
           if (!Object.prototype.hasOwnProperty.call(options, x)) {
             options[x] = self._defaults[x];
           }
@@ -187,39 +211,71 @@ module.exports.template = (function() {
         }
       });
       options.opacity = parseFloat(options.opacity.toFixed(2)); // cleans up opacity for the URL, e.g. 1.3877787807814457e-16 => 0
+
+      if (!(options.convertMode in self.gl.programs.downscaling)) {
+        options.convertMode = self._defaults.convertMode;
+      }
+
+      const newConvertMode = options.convertMode !== self.options.convertMode;
+
       self.options = options;
 
       if (options.url.length === 0 || options.use === false) {
         self.options.use = false;
-        if (self.elements.template) {
-          self.elements.template.remove();
-          self.elements.template = null;
-        }
         board.update(true);
-        ['template', 'ox', 'oy', 'oo', 'tw', 'title'].forEach(x => query.remove(x, true));
+        ['template', 'ox', 'oy', 'oo', 'tw', 'title', 'convert'].forEach(x => query.remove(x, true));
       } else {
         self.options.use = true;
-        if (urlUpdated === true && self.elements.template != null) {
-          self.elements.template.remove(); // necessary so everything gets redrawn properly 'n whatnot. could probably just update the url directly...
-          self.elements.template = null;
+        if (urlUpdated === true) {
+          self.loadImage();
         }
-        self.lazy_init();
 
-        [['left', 'x'], ['top', 'y'], ['opacity', 'opacity']].forEach(x => {
-          self.elements.template.css(x[0], options[x[1]]);
-        });
-        self.elements.template.css('width', options.width > 0 ? options.width : 'auto');
+        if (!self.loading && (self.isDirty() || newConvertMode)) {
+          self.rasterizeTemplate();
+        }
 
-        [['url', 'template'], ['x', 'ox'], ['y', 'oy'], ['width', 'tw'], ['opacity', 'oo'], ['title', 'title']].forEach(x => {
+        [['url', 'template'], ['x', 'ox'], ['y', 'oy'], ['width', 'tw'], ['opacity', 'oo'], ['title', 'title'], ['convertMode', 'convert']].forEach(x => {
           query.set(x[1], self.options[x[0]], true);
         });
       }
+
+      self.elements.styleImage.attr({ src: self.options.style });
+
+      self.applyOptions();
+
       if (updateSettings) {
         self.updateSettings();
       }
       document.title = uiHelper.getTitle();
 
       self.setPixelated(query.get('scale') >= self.getWidthRatio());
+    },
+    usesStyle() {
+      return !!self.options.style;
+    },
+    applyOptions() {
+      if (self.options.use) {
+        [['left', 'x'], ['top', 'y'], ['opacity', 'opacity']].forEach(x => {
+          self.elements.visibles.css(x[0], self.options[x[1]]);
+        });
+      }
+
+      self.elements.template.toggleClass('hidden', !self.options.use || !self.usesStyle());
+      self.elements.sourceImage.toggleClass('hidden', !self.options.use || self.usesStyle());
+    },
+    updateSize: function() {
+      self.elements.visibles.css({
+        width: self.getDisplayWidth()
+      });
+      self.elements.template.attr({
+        width: self.getInternalWidth(),
+        height: self.getInternalHeight()
+      });
+    },
+    isDirty: function() {
+      return parseFloat(self.elements.visibles.css('width')) !== self.getDisplayWidth() ||
+        parseFloat(self.elements.visibles.attr('width')) !== self.getInternalWidth() ||
+        parseFloat(self.elements.visibles.attr('height')) !== self.getInternalHeight();
     },
     disableTemplate: function() {
       self._update({ url: null });
@@ -242,6 +298,8 @@ module.exports.template = (function() {
       board = require('./board').board;
       query = require('./query').query;
       uiHelper = require('./uiHelper').uiHelper;
+      self.elements.visibles = $().add(self.elements.template).add(self.elements.sourceImage).addClass('noselect board-template');
+
       self.elements.imageErrorWarning.hide();
 
       self.elements.useCheckbox.change((e) => self._update({ use: e.target.checked }));
@@ -258,6 +316,11 @@ module.exports.template = (function() {
 
       self.elements.widthInput.on('change input', (e) => self._update({ width: parseFloat(e.target.value) }, false));
       self.elements.widthResetBtn.on('click', (e) => self._update({ width: -1 }));
+
+      self.elements.styleSelect.on('change input', (e) => self._update({ style: e.target.value }));
+      self.elements.customStyleInput.on('change input', (e) => self.elements.styleOptionCustom.attr({ value: e.target.value }));
+
+      self.elements.conversionModeSelect.on('change input', (e) => self._update({ convertMode: e.target.value }));
 
       self.updateSettings();
 
@@ -278,7 +341,7 @@ module.exports.template = (function() {
             case 'Alt':
             case 18:
               evt.preventDefault();
-              self.elements.template.css('pointer-events', 'initial');
+              self.elements.visibles.css('pointer-events', 'initial');
               break;
           }
         }
@@ -304,23 +367,452 @@ module.exports.template = (function() {
             break;
         }
       }).on('keyup blur', self.stopDragging);
+
+      const drag = {
+        x: 0,
+        y: 0
+      };
+      self.elements.visibles.data(
+        'dragging', false
+      ).on('mousedown pointerdown', function(evt) {
+        evt.preventDefault();
+        $(this).data('dragging', true);
+        drag.x = evt.clientX;
+        drag.y = evt.clientY;
+        evt.stopPropagation();
+      }).on('mouseup pointerup', function(evt) {
+        evt.preventDefault();
+        $(this).data('dragging', false);
+        evt.stopPropagation();
+      }).on('mousemove pointermove', function(evt) {
+        evt.preventDefault();
+        if ($(this).data('dragging')) {
+          if (!evt.ctrlKey && !evt.altKey) {
+            self.stopDragging();
+            return;
+          }
+          const pxOld = board.fromScreen(drag.x, drag.y);
+          const pxNew = board.fromScreen(evt.clientX, evt.clientY);
+          const dx = (pxNew.x) - (pxOld.x);
+          const dy = (pxNew.y) - (pxOld.y);
+          const newX = self.options.x + dx;
+          const newY = self.options.y + dy;
+          self._update({ x: newX, y: newY });
+          query.set({ ox: newX, oy: newY }, true);
+          if (dx !== 0) {
+            drag.x = evt.clientX;
+          }
+          if (dy !== 0) {
+            drag.y = evt.clientY;
+          }
+        }
+      });
+
+      self.elements.styleImage.on('load', function(e) {
+        self.loadStyle(!self.loading);
+      });
+
+      self.elements.sourceImage.on('load', (e) => {
+        self.loading = false;
+        self.rasterizeTemplate();
+        if (!(self.options.width >= 0)) {
+          self.elements.widthInput.val(self.elements.sourceImage[0].naturalWidth);
+        }
+        self.elements.visibles.toggleClass('pixelate', query.get('scale') > self.getWidthRatio());
+      }).on('error', () => {
+        self.loading = false;
+        self.elements.imageErrorWarning.show();
+        self.elements.imageErrorWarning.text('There was an error getting the image');
+        self._update({ use: false });
+      });
+
+      if (board.update(true)) {
+        return;
+      }
+      board.getRenderBoard().parent().prepend(self.elements.visibles);
+    },
+    webinit: function(data) {
+      self.initGl(self.elements.template[0].getContext('webgl', {
+        premultipliedAlpha: false
+      }), data.palette);
+
+      self.initCORS(data.corsBase, data.corsParam);
+
+      if (!self.loading) {
+        self.rasterizeTemplate();
+      }
     },
     stopDragging: function() {
       if (self.options.use) {
-        self.elements.template.css('pointer-events', 'none').data('dragging', false);
+        self.elements.visibles.css('pointer-events', 'none').data('dragging', false);
       }
     },
     setPixelated: function(pixelate = true) {
-      if (self.elements.template !== null) {
-        self.elements.template.toggleClass('pixelate', pixelate);
-      }
+      self.elements.visibles.toggleClass('pixelate', pixelate);
     },
     getWidthRatio: function() {
-      if (self.elements.template === null || self.options.width === -1) {
-        return 1;
+      if (self.usesStyle()) {
+        return self.getInternalWidth() / self.getDisplayWidth();
+      } else {
+        return self.getSourceWidth() / self.getDisplayWidth();
+      }
+    },
+    getDownscaleWidthRatio: function() {
+      return self.getSourceWidth() / self.getDisplayWidth();
+    },
+    getDownscaleHeightRatio: function() {
+      return self.getSourceHeight() / self.getDisplayHeight();
+    },
+    getDisplayWidth: function() {
+      return Math.round(self.options.width >= 0 ? self.options.width : self.getSourceWidth());
+    },
+    getDisplayHeight: function() {
+      return Math.round(self.getDisplayWidth() * self.getAspectRatio());
+    },
+    getStyleWidth: function() {
+      return self.elements.styleImage[0].naturalWidth / STYLES_X;
+    },
+    getStyleHeight: function() {
+      return self.elements.styleImage[0].naturalHeight / STYLES_Y;
+    },
+    getSourceWidth: function() {
+      return self.elements.sourceImage[0].naturalWidth;
+    },
+    getSourceHeight: function() {
+      return self.elements.sourceImage[0].naturalHeight;
+    },
+    getAspectRatio: function() {
+      return self.getSourceWidth() === 0 ? 1 : self.getSourceHeight() / self.getSourceWidth();
+    },
+    getInternalWidth: function() {
+      return self.getDisplayWidth() * self.getStyleWidth();
+    },
+    getInternalHeight: function() {
+      return self.getDisplayHeight() * self.getStyleHeight();
+    },
+    loadStyle: function(redraw = true) {
+      const style = self.elements.styleImage[0];
+      if (self.gl.context !== null && style.naturalWidth !== 0 && style.naturalHeight !== 0) {
+        self.gl.context.activeTexture(self.gl.context.TEXTURE1);
+        self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, self.gl.textures.style);
+        self.gl.context.texImage2D(
+          self.gl.context.TEXTURE_2D,
+          0,
+          self.gl.context.ALPHA,
+          self.gl.context.ALPHA,
+          self.gl.context.UNSIGNED_BYTE,
+          style
+        );
+        if (redraw) {
+          self.stylizeTemplate();
+        }
+      }
+    },
+    initGl: function(context, palette) {
+      self.gl.context = context;
+      if (self.gl.context === null) {
+        console.info('WebGL is unsupported on this system');
+        return;
+      }
+      self.gl.context.clearColor(0, 0, 0, 0);
+      // self.gl.context.pixelStorei(self.gl.context.UNPACK_COLORSPACE_CONVERSION_WEBGL, self.gl.context.NONE);
+      self.gl.context.pixelStorei(self.gl.context.UNPACK_FLIP_Y_WEBGL, true);
+      self.gl.textures.source = self.createGlTexture();
+      self.gl.textures.downscaled = self.createGlTexture();
+      self.gl.framebuffers.intermediate = self.gl.context.createFramebuffer();
+      self.gl.context.bindFramebuffer(self.gl.context.FRAMEBUFFER, self.gl.framebuffers.intermediate);
+      self.gl.context.framebufferTexture2D(
+        self.gl.context.FRAMEBUFFER,
+        self.gl.context.COLOR_ATTACHMENT0,
+        self.gl.context.TEXTURE_2D,
+        self.gl.textures.downscaled,
+        0
+      );
+      self.gl.textures.style = self.createGlTexture();
+      self.loadStyle(false);
+      self.gl.buffers.vertex = self.gl.context.createBuffer();
+      self.gl.context.bindBuffer(self.gl.context.ARRAY_BUFFER, self.gl.buffers.vertex);
+      self.gl.context.bufferData(
+        self.gl.context.ARRAY_BUFFER,
+        new Float32Array([
+          -1, -1,
+          -1, 1,
+          1, -1,
+          1, 1
+        ]),
+        self.gl.context.STATIC_DRAW
+      );
+      const identityVertexShader = `
+        attribute vec2 a_Pos;
+        varying vec2 v_TexCoord;
+        void main() {
+          v_TexCoord = a_Pos * vec2(0.5, 0.5) + vec2(0.5, 0.5);
+          gl_Position = vec4(a_Pos, 0.0, 1.0);
+        }
+      `;
+      const paletteDefs = `
+        #define PALETTE_LENGTH ${palette.length}
+        #define PALETTE_MAXSIZE 255.0
+        #define PALETTE_TRANSPARENT (PALETTE_MAXSIZE - 1.0) / PALETTE_MAXSIZE
+        #define PALETTE_UNKNOWN 1.0
+      `;
+      const diffCustom = `
+        #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+        // a simple custom colorspace that stores:
+        // - brightness
+        // - red/green-ness
+        // - blue/yellow-ness
+        // this storing of contrasts is similar to how humans
+        // see color difference and provides a simple difference function
+        // with decent results.
+        vec3 rgb2Custom(vec3 rgb) {
+          return vec3(
+            length(rgb * LUMA_WEIGHTS),
+            rgb.r - rgb.g,
+            rgb.b - (rgb.r + rgb.g) / 2.0
+          );
+        }
+        float diffCustom(vec3 col1, vec3 col2) {
+          return length(rgb2Custom(col1) - rgb2Custom(col2));
+        }
+      `;
+      const downscalingFragmentShader = (comparisonFunctionName = null) => `
+        precision mediump float;
+        // GLES (and thus WebGL) does not support dynamic for loops
+        // the workaround is to specify the condition as an upper bound
+        // then break the loop early if we reach our dynamic limit 
+        #define MAX_SAMPLE_SIZE 16.0
+        
+        ${paletteDefs}
+        ${comparisonFunctionName !== null ? '#define CONVERT_COLORS' : ''}
+        #define HIGHEST_DIFF 999999.9
+        uniform sampler2D u_Template;
+        uniform vec2 u_TexelSize;
+        uniform vec2 u_SampleSize;
+        uniform vec3 u_Palette[PALETTE_LENGTH];
+        varying vec2 v_TexCoord;
+        const float epsilon = 1.0 / 128.0;
+        // The alpha channel is used to index the palette: 
+        const vec4 transparentColor = vec4(0.0, 0.0, 0.0, PALETTE_TRANSPARENT);
+        ${diffCustom}
+        void main () {
+          vec4 color = vec4(0.0);
+          vec2 actualSampleSize = min(u_SampleSize, vec2(MAX_SAMPLE_SIZE));
+          vec2 sampleTexSize = u_TexelSize / actualSampleSize;
+          // sample is taken from center of fragment
+          // this moves the coordinates to the starting corner and to the center of the sample texel
+          vec2 sampleOrigin = v_TexCoord - sampleTexSize * (actualSampleSize / 2.0 - 0.5);
+          float sampleCount = 0.0;
+          for(float x = 0.0; x < MAX_SAMPLE_SIZE; x++) {
+            if(x >= u_SampleSize.x) {
+              break;
+            }
+            for(float y = 0.0; y < MAX_SAMPLE_SIZE; y++) {
+              if(y >= u_SampleSize.y) {
+                break;
+              }
+              vec2 pos = sampleOrigin + sampleTexSize * vec2(x, y);
+              vec4 sample = texture2D(u_Template, pos);
+              // pxlsfiddle uses the alpha channel of the first pixel to store
+              // scale information. This can affect color sampling, so drop the
+              // top-left-most subtexel unless its alpha is typical (1 or 0 exactly).
+              if(x == 0.0 && y == 0.0
+                && pos.x < u_TexelSize.x && (1.0 - pos.y) < u_TexelSize.y
+                && sample.a != 1.0) {
+                continue;
+              }
+              if(sample.a == 0.0) {
+                continue;
+              }
+              color += sample;
+              sampleCount++;
+            }
+          }
+          if(sampleCount == 0.0) {
+            gl_FragColor = transparentColor;
+            return;
+          }
+          color /= sampleCount;
+          #ifdef CONVERT_COLORS
+            float bestDiff = HIGHEST_DIFF;
+            int bestIndex = int(PALETTE_MAXSIZE);
+            vec3 bestColor = vec3(0.0);
+            for(int i = 0; i < PALETTE_LENGTH; i++) {
+              float diff = ${comparisonFunctionName}(color.rgb, u_Palette[i]);
+              if(diff < bestDiff) {
+                bestDiff = diff;
+                bestIndex = i;
+                bestColor = u_Palette[i];
+              }
+            }
+            gl_FragColor = vec4(bestColor, float(bestIndex) / PALETTE_MAXSIZE);
+          #else
+            for(int i = 0; i < PALETTE_LENGTH; i++) {
+              if(all(lessThan(abs(u_Palette[i] - color.rgb), vec3(epsilon)))) {
+                gl_FragColor = vec4(u_Palette[i], float(i) / PALETTE_MAXSIZE);
+                return;
+              }
+            }
+            gl_FragColor = vec4(color.rgb, PALETTE_UNKNOWN);
+          #endif
+        }
+      `;
+      self.gl.programs.downscaling.unconverted = self.createGlProgram(identityVertexShader, downscalingFragmentShader(null));
+      self.gl.programs.downscaling.nearestCustom = self.createGlProgram(identityVertexShader, downscalingFragmentShader('diffCustom'));
+      const int2rgb = i => [(i >> 16) & 0xFF, (i >> 8) & 0xFF, i & 0xFF];
+      const paletteBuffer = new Float32Array(palette.flatMap(c => int2rgb(parseInt(c.value, 16)).map(c => c / 255)));
+      for (const program of Object.values(self.gl.programs.downscaling)) {
+        self.gl.context.useProgram(program);
+        const posLocation = self.gl.context.getAttribLocation(program, 'a_Pos');
+        self.gl.context.vertexAttribPointer(posLocation, 2, self.gl.context.FLOAT, false, 0, 0);
+        self.gl.context.enableVertexAttribArray(posLocation);
+        self.gl.context.uniform1i(self.gl.context.getUniformLocation(program, 'u_Template'), 0);
+        self.gl.context.uniform3fv(self.gl.context.getUniformLocation(program, 'u_Palette'), paletteBuffer);
+      }
+      self.gl.programs.stylize = self.createGlProgram(identityVertexShader, `
+        precision mediump float;
+        #define STYLES_X float(${STYLES_X})
+        #define STYLES_Y float(${STYLES_Y})
+        ${paletteDefs}
+        uniform sampler2D u_Template;
+        uniform sampler2D u_Style;
+        uniform vec2 u_TexelSize;
+        varying vec2 v_TexCoord;
+        const vec2 styleSize = vec2(1.0 / STYLES_X, 1.0 / STYLES_Y);
+        void main () {
+          vec4 templateSample = texture2D(u_Template, v_TexCoord);
+          float index = floor(templateSample.a * PALETTE_MAXSIZE + 0.5);
+          vec2 indexCoord = vec2(mod(index, STYLES_X), STYLES_Y - floor(index / STYLES_Y) - 1.0);
+          vec2 subTexCoord = mod(v_TexCoord, u_TexelSize) / u_TexelSize;
+          vec2 styleCoord = (indexCoord + subTexCoord) * styleSize;
+          
+          vec4 styleMask = vec4(1.0, 1.0, 1.0, texture2D(u_Style, styleCoord).a);
+          gl_FragColor = vec4(templateSample.rgb, templateSample.a == PALETTE_TRANSPARENT ? 0.0 : 1.0) * styleMask;
+        }
+      `);
+      self.gl.context.useProgram(self.gl.programs.stylize);
+      const stylePosLocation = self.gl.context.getAttribLocation(self.gl.programs.stylize, 'a_Pos');
+      self.gl.context.vertexAttribPointer(stylePosLocation, 2, self.gl.context.FLOAT, false, 0, 0);
+      self.gl.context.enableVertexAttribArray(stylePosLocation);
+      self.gl.context.uniform1i(self.gl.context.getUniformLocation(self.gl.programs.stylize, 'u_Template'), 0);
+      self.gl.context.uniform1i(self.gl.context.getUniformLocation(self.gl.programs.stylize, 'u_Style'), 1);
+    },
+    createGlProgram: function(vertexSource, fragmentSource) {
+      const program = self.gl.context.createProgram();
+      self.gl.context.attachShader(program, self.createGlShader(self.gl.context.VERTEX_SHADER, vertexSource));
+      self.gl.context.attachShader(program, self.createGlShader(self.gl.context.FRAGMENT_SHADER, fragmentSource));
+      self.gl.context.linkProgram(program);
+      if (!self.gl.context.getProgramParameter(program, self.gl.context.LINK_STATUS)) {
+        throw new Error('Failed to link WebGL template program:\n\n' + self.gl.context.getProgramInfoLog(program));
+      }
+      return program;
+    },
+    createGlShader: function(type, source) {
+      const shader = self.gl.context.createShader(type);
+      self.gl.context.shaderSource(shader, source);
+      self.gl.context.compileShader(shader);
+      if (!self.gl.context.getShaderParameter(shader, self.gl.context.COMPILE_STATUS)) {
+        throw new Error('Failed to compile WebGL template shader:\n\n' + self.gl.context.getShaderInfoLog(shader));
+      }
+      return shader;
+    },
+    createGlTexture: function() {
+      const texture = self.gl.context.createTexture();
+      self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, texture);
+      self.gl.context.texParameteri(self.gl.context.TEXTURE_2D, self.gl.context.TEXTURE_WRAP_S, self.gl.context.CLAMP_TO_EDGE);
+      self.gl.context.texParameteri(self.gl.context.TEXTURE_2D, self.gl.context.TEXTURE_WRAP_T, self.gl.context.CLAMP_TO_EDGE);
+      self.gl.context.texParameteri(self.gl.context.TEXTURE_2D, self.gl.context.TEXTURE_MIN_FILTER, self.gl.context.NEAREST);
+      self.gl.context.texParameteri(self.gl.context.TEXTURE_2D, self.gl.context.TEXTURE_MAG_FILTER, self.gl.context.NEAREST);
+      return texture;
+    },
+    rasterizeTemplate: function() {
+      self.downscaleTemplate();
+      self.stylizeTemplate();
+    },
+    downscaleTemplate: function() {
+      const width = self.getDisplayWidth();
+      const height = self.getDisplayHeight();
+      if (self.gl.context == null || width === 0 || height === 0) {
+        return;
+      }
+      // set the framebuffer size before rendering to it
+      self.gl.context.activeTexture(self.gl.context.TEXTURE0);
+      self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, self.gl.textures.downscaled);
+      self.gl.context.texImage2D(
+        self.gl.context.TEXTURE_2D,
+        0,
+        self.gl.context.RGBA,
+        width,
+        height,
+        0,
+        self.gl.context.RGBA,
+        self.gl.context.UNSIGNED_BYTE,
+        null
+      );
+
+      self.gl.context.bindFramebuffer(self.gl.context.FRAMEBUFFER, self.gl.framebuffers.intermediate);
+      self.gl.context.clear(self.gl.context.COLOR_BUFFER_BIT);
+      self.gl.context.viewport(0, 0, width, height);
+
+      const program = self.gl.programs.downscaling[self.options.convertMode];
+
+      self.gl.context.useProgram(program);
+
+      self.gl.context.uniform2f(
+        self.gl.context.getUniformLocation(program, 'u_SampleSize'),
+        Math.max(1, self.getDownscaleWidthRatio()),
+        Math.max(1, self.getDownscaleHeightRatio())
+      );
+      self.gl.context.uniform2f(
+        self.gl.context.getUniformLocation(program, 'u_TexelSize'),
+        1 / self.getDisplayWidth(),
+        1 / self.getDisplayHeight()
+      );
+
+      self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, self.gl.textures.source);
+
+      const texture = self.elements.sourceImage[0];
+
+      self.gl.context.texImage2D(
+        self.gl.context.TEXTURE_2D,
+        0,
+        self.gl.context.RGBA,
+        self.gl.context.RGBA,
+        self.gl.context.UNSIGNED_BYTE,
+        texture
+      );
+
+      self.gl.context.drawArrays(self.gl.context.TRIANGLE_STRIP, 0, 4);
+    },
+    stylizeTemplate: function() {
+      self.updateSize();
+
+      const width = self.getInternalWidth();
+      const height = self.getInternalHeight();
+
+      if (self.gl.context == null || width === 0 || height === 0) {
+        return;
       }
 
-      return self.elements.template[0].naturalWidth / self.options.width;
+      self.gl.context.bindFramebuffer(self.gl.context.FRAMEBUFFER, self.gl.framebuffers.main);
+      self.gl.context.clear(self.gl.context.COLOR_BUFFER_BIT);
+      self.gl.context.viewport(0, 0, width, height);
+
+      self.gl.context.useProgram(self.gl.programs.stylize);
+
+      self.gl.context.uniform2f(
+        self.gl.context.getUniformLocation(self.gl.programs.stylize, 'u_TexelSize'),
+        1 / self.getDisplayWidth(),
+        1 / self.getDisplayHeight()
+      );
+
+      self.gl.context.activeTexture(self.gl.context.TEXTURE0);
+      self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, self.gl.textures.downscaled);
+
+      self.gl.context.activeTexture(self.gl.context.TEXTURE1);
+      self.gl.context.bindTexture(self.gl.context.TEXTURE_2D, self.gl.textures.style);
+
+      self.gl.context.drawArrays(self.gl.context.TRIANGLE_STRIP, 0, 4);
     }
   };
   return {
@@ -328,9 +820,12 @@ module.exports.template = (function() {
     update: self._update,
     draw: self.draw,
     init: self.init,
+    webinit: self.webinit,
     queueUpdate: self.queueUpdate,
     getOptions: () => self.options,
     setPixelated: self.setPixelated,
+    getDisplayWidth: self.getDisplayWidth,
+    getDisplayHeight: self.getDisplayHeight,
     getWidthRatio: self.getWidthRatio
   };
 })();
