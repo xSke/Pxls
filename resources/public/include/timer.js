@@ -12,15 +12,17 @@ module.exports.timer = (function() {
       timer_countdown: $('#cooldown-timer'),
       timer_chat: $('#txtMobileChatCooldown')
     },
+    hasCooledDown: false,
     hasFiredNotification: true,
     cooldown: 0,
     runningTimer: false,
     audio: new Audio('notify.wav'),
     title: '',
     cooledDown: function() {
-      return self.cooldown < (new Date()).getTime();
+      return self.hasCooledDown;
     },
     update: function(die) {
+      self.hasCooledDown = false;
       // subtract one extra millisecond to prevent the first displaying to be derped
       let delta = (self.cooldown - (new Date()).getTime() - 1) / 1000;
 
@@ -40,6 +42,7 @@ module.exports.timer = (function() {
           notif = nativeNotifications.maybeShow(`Your next pixel will be available in ${Math.abs(alertDelay)} seconds!`);
         }
         setTimeout(() => {
+          self.hasCooledDown = true;
           uiHelper.setPlaceableText(1);
           if (notif) {
             $(window).one('pxls:ack:place', () => notif.close());
@@ -85,6 +88,7 @@ module.exports.timer = (function() {
               $(window).one('pxls:ack:place', () => notif.close());
             }
           }
+          self.hasCooledDown = true;
           uiHelper.setPlaceableText(1);
           self.hasFiredNotification = true;
         }, alertDelay * 1000);
@@ -99,6 +103,7 @@ module.exports.timer = (function() {
             $(window).one('pxls:ack:place', () => notif.close());
           }
         }
+        self.hasCooledDown = true;
         uiHelper.setPlaceableText(1);
         self.hasFiredNotification = true;
       }
@@ -109,7 +114,8 @@ module.exports.timer = (function() {
       self.elements.timer_chat.text('');
 
       setTimeout(function() {
-        if (self.cooledDown() && uiHelper.getAvailable() === 0) {
+        if (self.cooldown < (new Date()).getTime() && uiHelper.getAvailable() === 0) {
+          self.hasCooledDown = true;
           uiHelper.setPlaceableText(1);
         }
       }, 250);
