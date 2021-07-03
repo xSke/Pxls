@@ -189,10 +189,6 @@ const user = (function() {
       socket.on('users', function(data) {
         self.elements.users.text(data.count + ' online').fadeIn(200);
       });
-      socket.on('session_limit', function(data) {
-        socket.close();
-        modal.showText('Too many sessions open, try closing some tabs.');
-      });
       socket.on('userinfo', function(data) {
         let isBanned = false;
         const banelem = crel('div', { class: 'ban-alert-content' });
